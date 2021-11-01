@@ -258,7 +258,7 @@ class Post_By_Email {
 		$connection_options = array(
 			'protocol' => $options['mailserver_protocol'],
 			'username' => $options['mailserver_login'],
-			'password' => $options['mailserver_pass'],
+			'password' => htmlspecialchars_decode($options['mailserver_pass']), // decode html entities
 			'hostspec' => $options['mailserver_url'],
 			'port'     => $options['mailserver_port'],
 			'secure'   => $options['ssl'] ? 'ssl' : false,
