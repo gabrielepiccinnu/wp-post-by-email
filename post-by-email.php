@@ -10,8 +10,8 @@
  *
  * @wordpress-plugin
  * Plugin Name: Post By Email
- * Plugin URI:  https://github.com/codebykat/wp-post-by-email/
- * Description: Create new posts on your WordPress blog by sending email to a specific email address.
+ * Plugin URI:  https://github.com/gabrielepiccinnu/wp-post-by-email
+ * Description: Create new posts on your WordPress blog by sending email to a specific email address. Origin project: https://github.com/codebykat/wp-post-by-email/
  * Version:     1.1
  * Author:      Kat Hagan
  * Author URI:  http://profiles.wordpress.org/codebykat
