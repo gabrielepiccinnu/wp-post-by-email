@@ -1,17 +1,17 @@
 <?php
 /**
- * Copyright 2008-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2008-2017 Horde LLC (http://www.horde.org/)
  *
  * getBaseSubject() code adapted from imap-base-subject.c (Dovecot 1.2)
  *   Original code released under the LGPL-2.1
  *   Copyright (c) 2002-2008 Timo Sirainen <tss@iki.fi>
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
  * @copyright 2002-2008 Timo Sirainen
- * @copyright 2008-2013 Horde LLC
+ * @copyright 2008-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -23,7 +23,7 @@
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
  * @copyright 2002-2008 Timo Sirainen
- * @copyright 2011-2013 Horde LLC
+ * @copyright 2011-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -54,10 +54,6 @@ class Horde_Imap_Client_Data_BaseSubject
         // Rule 1b: Remove superfluous whitespace.
         $str = preg_replace("/[\t\r\n ]+/", ' ', $str);
 
-        if (!strlen($str)) {
-            $this->_subject = '';
-        }
-
         do {
             /* (2) Remove all trailing text of the subject that matches the
              * the subj-trailer ABNF, repeat until no more matches are
@@ -82,7 +78,7 @@ class Horde_Imap_Client_Data_BaseSubject
              * subj-fwd-trl and repeat from step (2). */
         } while ($this->_removeSubjFwdHdr($str));
 
-        $this->_subject = $str;
+        $this->_subject = strval($str);
     }
 
     /**
@@ -120,7 +116,7 @@ class Horde_Imap_Client_Data_BaseSubject
         $i = 0;
 
         if (!$keepblob) {
-            while (isset($str[$i]) && ($str[$i] == '[')) {
+            while (isset($str[$i]) && ($str[$i] === '[')) {
                 if (($i = $this->_removeBlob($str, $i)) === false) {
                     return $ret;
                 }
@@ -129,10 +125,8 @@ class Horde_Imap_Client_Data_BaseSubject
 
         if (stripos($str, 're', $i) === 0) {
             $i += 2;
-        } elseif (stripos($str, 'fwd', $i) === 0) {
-            $i += 3;
         } elseif (stripos($str, 'fw', $i) === 0) {
-            $i += 2;
+            $i += (stripos($str, 'fwd', $i) === 0) ? 3 : 2;
         } else {
             return $ret;
         }
@@ -140,14 +134,14 @@ class Horde_Imap_Client_Data_BaseSubject
         $i += strspn($str, " \t", $i);
 
         if (!$keepblob) {
-            while (isset($str[$i]) && ($str[$i] == '[')) {
+            while (isset($str[$i]) && ($str[$i] === '[')) {
                 if (($i = $this->_removeBlob($str, $i)) === false) {
                     return $ret;
                 }
             }
         }
 
-        if (!isset($str[$i]) || ($str[$i] != ':')) {
+        if (!isset($str[$i]) || ($str[$i] !== ':')) {
             return $ret;
         }
 
@@ -167,29 +161,29 @@ class Horde_Imap_Client_Data_BaseSubject
      */
     protected function _removeBlob($str, $i)
     {
-        if ($str[$i] != '[') {
+        if ($str[$i] !== '[') {
             return false;
         }
 
         ++$i;
 
         for ($cnt = strlen($str); $i < $cnt; ++$i) {
-            if ($str[$i] == ']') {
+            if ($str[$i] === ']') {
                 break;
             }
 
-            if ($str[$i] == '[') {
+            if ($str[$i] === '[') {
                 return false;
             }
         }
 
-        if ($i == ($cnt - 1)) {
+        if ($i === ($cnt - 1)) {
             return false;
         }
 
         ++$i;
 
-        if ($str[$i] == ' ') {
+        if ($str[$i] === ' ') {
             ++$i;
         }
 
@@ -207,9 +201,9 @@ class Horde_Imap_Client_Data_BaseSubject
     protected function _removeBlobWhenNonempty(&$str)
     {
         if ($str &&
-            ($str[0] == '[') &&
+            ($str[0] === '[') &&
             (($i = $this->_removeBlob($str, 0)) !== false) &&
-            ($i != strlen($str))) {
+            ($i !== strlen($str))) {
             $str = substr($str, $i);
             return true;
         }
@@ -226,7 +220,7 @@ class Horde_Imap_Client_Data_BaseSubject
      */
     protected function _removeSubjFwdHdr(&$str)
     {
-        if ((stripos($str, '[fwd:') !== 0) || (substr($str, -1) != ']')) {
+        if ((stripos($str, '[fwd:') !== 0) || (substr($str, -1) !== ']')) {
             return false;
         }
 

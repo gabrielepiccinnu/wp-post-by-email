@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2011-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2011-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2011-2013 Horde LLC
+ * @copyright 2011-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -17,7 +17,7 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2011-2013 Horde LLC
+ * @copyright 2011-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  *
@@ -52,7 +52,7 @@ class Horde_Imap_Client_Mailbox implements Serializable
      *
      * @return Horde_Imap_Client_Mailbox  A mailbox object.
      */
-    static public function get($mbox, $utf7imap = false)
+    public static function get($mbox, $utf7imap = false)
     {
         return ($mbox instanceof Horde_Imap_Client_Mailbox)
             ? $mbox
@@ -62,9 +62,10 @@ class Horde_Imap_Client_Mailbox implements Serializable
     /**
      * Constructor.
      *
-     * @param string $mbox     The mailbox name.
-     * @param mixed $utf7imap  Is mailbox UTF7-IMAP encoded (true). Otherwise,
-     *                         mailbox is assumed to be UTF-8 encoded.
+     * @param string $mbox       The mailbox name.
+     * @param boolean $utf7imap  Is mailbox UTF7-IMAP encoded (true).
+     *                           Otherwise, mailbox is assumed to be UTF-8
+     *                           encoded.
      */
     public function __construct($mbox, $utf7imap = false)
     {
@@ -106,7 +107,7 @@ class Horde_Imap_Client_Mailbox implements Serializable
                     $this->_utf7imap = true;
                 }
             }
-            return $this->_utf8;
+            return (string)$this->_utf8;
         }
     }
 

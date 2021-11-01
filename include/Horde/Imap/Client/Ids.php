@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2011-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2011-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2011-2013 Horde LLC
+ * @copyright 2011-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -16,13 +16,15 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2011-2013 Horde LLC
+ * @copyright 2011-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  *
  * @property-read boolean $all  Does this represent an ALL message set?
  * @property-read array $ids  The list of IDs.
  * @property-read boolean $largest  Does this represent the largest ID in use?
+ * @property-read string $max  The largest ID (@since 2.20.0).
+ * @property-read string $min  The smallest ID (@since 2.20.0).
  * @property-read string $range_string  Generates a range string consisting of
  *                                      all messages between begin and end of
  *                                      ID list.
@@ -38,7 +40,9 @@
  */
 class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 {
-    /* "Special" representation constants. */
+    /**
+     * "Special" representation constants.
+     */
     const ALL = "\01";
     const SEARCH_RES = "\02";
     const LARGEST = "\03";
@@ -99,14 +103,21 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
         case 'largest':
             return ($this->_ids === self::LARGEST);
 
+        case 'max':
+            $this->sort();
+            return end($this->_ids);
+
+        case 'min':
+            $this->sort();
+            return reset($this->_ids);
+
         case 'range_string':
             if (!count($this)) {
                 return '';
             }
 
-            $this->sort();
-            $min = reset($this->_ids);
-            $max = end($this->_ids);
+            $min = $this->min;
+            $max = $this->max;
 
             return ($min == $max)
                 ? $min
@@ -151,38 +162,41 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
     public function add($ids)
     {
         if (!is_null($ids)) {
-            $add = array();
-
             if (is_string($ids) &&
                 in_array($ids, array(self::ALL, self::SEARCH_RES, self::LARGEST))) {
                 $this->_ids = $ids;
-                $this->_sorted = false;
-                return;
-            }
-
-            if ($ids instanceof Horde_Imap_Client_Ids) {
-                $add = $ids->ids;
-            } elseif (is_array($ids)) {
-                $add = $ids;
-            } elseif (is_string($ids) || is_integer($ids)) {
-                if (is_numeric($ids)) {
-                    $add = array($ids);
+            } elseif ($add = $this->_resolveIds($ids)) {
+                if (is_array($this->_ids) && !empty($this->_ids)) {
+                    foreach ($add as $val) {
+                        $this->_ids[] = $val;
+                    }
                 } else {
-                    $add = $this->_fromSequenceString($ids);
+                    $this->_ids = $add;
                 }
-            }
-
-            if (!empty($add)) {
-                $this->_ids = is_array($this->_ids)
-                    ? array_merge($this->_ids, $add)
-                    : $add;
                 if (!$this->duplicates) {
                     $this->_ids = (count($this->_ids) > 25000)
                         ? array_unique($this->_ids)
                         : array_keys(array_flip($this->_ids));
                 }
-                $this->_sorted = false;
             }
+
+            $this->_sorted = is_array($this->_ids) && (count($this->_ids) === 1);
+        }
+    }
+
+    /**
+     * Removed IDs from the current object.
+     *
+     * @since 2.17.0
+     *
+     * @param mixed $ids  Either Horde_Imap_Client_Ids object, array, or
+     *                    sequence string.
+     */
+    public function remove($ids)
+    {
+        if (!$this->isEmpty() &&
+            ($remove = $this->_resolveIds($ids))) {
+            $this->_ids = array_diff($this->_ids, array_unique($remove));
         }
     }
 
@@ -207,14 +221,24 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
     }
 
     /**
-     * Sorts the IDs numerically.
+     * Sorts the IDs.
      */
     public function sort()
     {
         if (!$this->_sorted && is_array($this->_ids)) {
-            sort($this->_ids, SORT_NUMERIC);
+            $this->_sort($this->_ids);
             $this->_sorted = true;
         }
+    }
+
+    /**
+     * Sorts the IDs numerically.
+     *
+     * @param array $ids  The array list.
+     */
+    protected function _sort(&$ids)
+    {
+        sort($ids, SORT_NUMERIC);
     }
 
     /**
@@ -234,10 +258,33 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
         $out = array();
 
         do {
-            $out[] = stream_get_contents($id->stream, $length) . $id->getToChar(',');
-        } while (!feof($id->stream));
+            $out[] = $id->substring(0, $length) . $id->getToChar(',');
+        } while (!$id->eof());
 
         return $out;
+    }
+
+    /**
+     * Resolve the $ids input to add() and remove().
+     *
+     * @param mixed $ids  Either Horde_Imap_Client_Ids object, array, or
+     *                    sequence string.
+     *
+     * @return array  An array of IDs.
+     */
+    protected function _resolveIds($ids)
+    {
+        if ($ids instanceof Horde_Imap_Client_Ids) {
+            return $ids->ids;
+        } elseif (is_array($ids)) {
+            return $ids;
+        } elseif (is_string($ids) || is_integer($ids)) {
+            return is_numeric($ids)
+                ? array($ids)
+                : $this->_fromSequenceString($ids);
+        }
+
+        return array();
     }
 
     /**
@@ -258,16 +305,15 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
         $in = $this->_ids;
 
-        if ($sort) {
-            sort($in, SORT_NUMERIC);
+        if ($sort && !$this->_sorted) {
+            $this->_sort($in);
         }
 
         $first = $last = array_shift($in);
         $i = count($in) - 1;
         $out = array();
 
-        reset($in);
-        while (list($key, $val) = each($in)) {
+        foreach ($in as $key => $val) {
             if (($last + 1) == $val) {
                 $last = $val;
             }
@@ -313,8 +359,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
         $idarray = explode(',', $str);
 
-        reset($idarray);
-        while (list(,$val) = each($idarray)) {
+        foreach ($idarray as $val) {
             $range = explode(':', $val);
             if (isset($range[1])) {
                 for ($i = min($range), $j = max($range); $i <= $j; ++$i) {
@@ -336,7 +381,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
     {
         return is_array($this->_ids)
             ? count($this->_ids)
-           : 0;
+            : 0;
     }
 
     /* Iterator methods. */

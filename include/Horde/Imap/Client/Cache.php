@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2005-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2005-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2005-2013 Horde LLC
+ * @copyright 2005-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -16,7 +16,7 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2005-2013 Horde LLC
+ * @copyright 2005-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -54,28 +54,15 @@ class Horde_Imap_Client_Cache
      * Constructor.
      *
      * @param array $params  Configuration parameters:
-     * <ul>
-     *  <li>
-     *   REQUIRED Parameters:
-     *   <ul>
-     *    <li>
-     *     backend: (Horde_Imap_Client_Cache_Backend) The cache backend.
-     *    </li>
-     *    <li>
-     *     baseob: (Horde_Imap_Client_Base) The base client object.
-     *    </li>
-     *   </ul>
-     *  </li>
-     *  <li>
-     *   Optional Parameters:
-     *   <ul>
-     *    <li>
-     *     debug: (Horde_Imap_Client_Base_Debug) Debug object.
-     *            DEFAULT: No debug output
-     *    </li>
-     *   </ul>
-     *  </li>
-     * </ul>
+     * <pre>
+     *   - REQUIRED Parameters:
+     *     - backend: (Horde_Imap_Client_Cache_Backend) The cache backend.
+     *     - baseob: (Horde_Imap_Client_Base) The base client object.
+     *
+     *   - Optional Parameters:
+     *     - debug: (Horde_Imap_Client_Base_Debug) Debug object.
+     *              DEFAULT: No debug output
+     * </pre>
      */
     public function __construct(array $params = array())
     {
@@ -91,7 +78,10 @@ class Horde_Imap_Client_Cache
         if (isset($params['debug']) &&
             ($params['debug'] instanceof Horde_Imap_Client_Base_Debug)) {
             $this->_debug = $params['debug'];
-            $this->_debug->info(sprintf("CACHE: Using the %s storage driver.", get_class($this->_backend)));
+            $this->_debug->info(sprintf(
+                'CACHE: Using the %s storage driver.',
+                get_class($this->_backend)
+            ));
         }
     }
 
@@ -122,7 +112,12 @@ class Horde_Imap_Client_Cache
             $ret = $this->_backend->get($mailbox, $uids, $fields, $uidvalid);
 
             if ($this->_debug && !empty($ret)) {
-                $this->_debug->info('CACHE: Retrieved messages (mailbox: ' . $mailbox . '; UIDs: ' . $this->_baseob->getIdsOb(array_keys($ret))->tostring_sort . ")");
+                $this->_debug->info(sprintf(
+                    'CACHE: Retrieved messages (%s [%s; %s])',
+                    empty($fields) ? 'ALL' : implode(',', $fields),
+                    $mailbox,
+                    $this->_baseob->getIdsOb(array_keys($ret))->tostring_sort
+                ));
             }
         }
 
@@ -149,7 +144,11 @@ class Horde_Imap_Client_Cache
             $this->_backend->set($mailbox, $data, $uidvalid);
 
             if ($this->_debug) {
-                $this->_debug->info('CACHE: Stored messages (mailbox: ' . $mailbox . '; UIDs: ' . $this->_baseob->getIdsOb(array_keys($data))->tostring_sort . ")");
+                $this->_debug->info(sprintf(
+                    'CACHE: Stored messages [%s; %s]',
+                    $mailbox,
+                    $this->_baseob->getIdsOb(array_keys($data))->tostring_sort
+                ));
             }
         }
     }
@@ -196,7 +195,11 @@ class Horde_Imap_Client_Cache
             $this->_backend->setMetaData($mailbox, $data);
 
             if ($this->_debug) {
-                $this->_debug->info('CACHE: Stored metadata (mailbox: ' . $mailbox . '; keys: ' . implode(',', array_keys($data)) . ")");
+                $this->_debug->info(sprintf(
+                    'CACHE: Stored metadata (%s [%s])',
+                    implode(',', array_keys($data)),
+                    $mailbox
+                ));
             }
         }
     }
@@ -218,7 +221,11 @@ class Horde_Imap_Client_Cache
         $this->_backend->deleteMsgs($mailbox, $uids);
 
         if ($this->_debug) {
-            $this->_debug->info('CACHE: Deleted messages (mailbox: ' . $mailbox . '; UIDs: ' . $this->_baseob->getIdsOb($uids)->tostring_sort . ")");
+            $this->_debug->info(sprintf(
+                'CACHE: Deleted messages [%s; %s]',
+                $mailbox,
+                $this->_baseob->getIdsOb($uids)->tostring_sort
+            ));
         }
     }
 
@@ -233,7 +240,10 @@ class Horde_Imap_Client_Cache
         $this->_backend->deleteMailbox($mbox);
 
         if ($this->_debug) {
-            $this->_debug->info('CACHE: Deleted mailbox (mailbox: ' . $mbox . ")");
+            $this->_debug->info(sprintf(
+                'CACHE: Deleted mailbox [%s]',
+                $mbox
+            ));
         }
     }
 

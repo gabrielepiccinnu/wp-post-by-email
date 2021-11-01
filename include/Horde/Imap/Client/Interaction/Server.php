@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2012-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2012-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2012-2013 Horde LLC
+ * @copyright 2012-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -17,13 +17,15 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2012-2013 Horde LLC
+ * @copyright 2012-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
 class Horde_Imap_Client_Interaction_Server
 {
-    /* Response codes (RFC 3501 [7.1]). */
+    /**
+     * Response codes (RFC 3501 [7.1]).
+     */
     const BAD = 1;
     const BYE = 2;
     const NO = 3;
@@ -68,7 +70,7 @@ class Horde_Imap_Client_Interaction_Server
      *
      * @return Horde_Imap_Client_Interaction_Server  A server response object.
      */
-    static public function create(Horde_Imap_Client_Tokenize $t)
+    public static function create(Horde_Imap_Client_Tokenize $t)
     {
         $t->rewind();
         $tag = $t->next();
@@ -106,17 +108,17 @@ class Horde_Imap_Client_Interaction_Server
 
             /* Check for response code. Only occurs if there is a response
              * status. */
-            if (is_string($resp_text) && ($resp_text[0] == '[')) {
+            if (is_string($resp_text) && ($resp_text[0] === '[')) {
                 $resp = new stdClass;
                 $resp->data = array();
 
-                if ($resp_text[strlen($resp_text) - 1] == ']') {
+                if ($resp_text[strlen($resp_text) - 1] === ']') {
                     $resp->code = substr($resp_text, 1, -1);
                 } else {
                     $resp->code = substr($resp_text, 1);
 
                     while (($elt = $token->next()) !== false) {
-                        if (is_string($elt) && $elt[strlen($elt) - 1] == ']') {
+                        if (is_string($elt) && $elt[strlen($elt) - 1] === ']') {
                             $resp->data[] = substr($elt, 0, -1);
                             break;
                         }

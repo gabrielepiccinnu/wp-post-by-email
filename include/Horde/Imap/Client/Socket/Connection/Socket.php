@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2013-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2013 Horde LLC
+ * @copyright 2013-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -20,42 +20,27 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2013 Horde LLC
+ * @copyright 2013-2017 Horde LLC
  * @internal
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
 class Horde_Imap_Client_Socket_Connection_Socket
-extends Horde_Imap_Client_Socket_Connection
+extends Horde_Imap_Client_Socket_Connection_Base
 {
+    /**
+     * If false, does not outpt the current line of client output to debug.
+     *
+     * @var boolean
+     */
+    public $client_debug = true;
+
     /**
      * Sending buffer.
      *
      * @var string
      */
     protected $_buffer = '';
-
-    /**
-     * Output full data for literals?
-     *
-     * @var boolean
-     */
-    protected $_debugliteral;
-
-    /**
-     * Constructor.
-     *
-     * @param Horde_Imap_Client_Base $base  The base client object.
-     * @param object $debug                 The debug handler.
-     *
-     * @throws Horde_Imap_Client_Exception
-     */
-    public function __construct(Horde_Imap_Client_Base $base, $debug)
-    {
-        parent::__construct($base, $debug);
-
-        $this->_debugliteral = $base->getParam('debug_literal');
-    }
 
     /**
      * Writes data to the IMAP output stream.
@@ -69,16 +54,21 @@ extends Horde_Imap_Client_Socket_Connection
     {
         if ($eol) {
             $buffer = $this->_buffer;
+            $debug = $this->client_debug;
             $this->_buffer = '';
+
+            $this->client_debug = true;
 
             if (fwrite($this->_stream, $buffer . $data . ($eol ? "\r\n" : '')) === false) {
                 throw new Horde_Imap_Client_Exception(
-                    Horde_Imap_Client_Translation::t("Server write error."),
+                    Horde_Imap_Client_Translation::r("Server write error."),
                     Horde_Imap_Client_Exception::SERVER_WRITEERROR
                 );
             }
 
-            $this->_debug->client($buffer . $data);
+            if ($debug) {
+                $this->_params['debug']->client($buffer . $data);
+            }
         } else {
             $this->_buffer .= $data;
         }
@@ -97,39 +87,52 @@ extends Horde_Imap_Client_Socket_Connection
     public function writeLiteral($data, $length, $binary = false)
     {
         $this->_buffer = '';
+        $success = false;
 
         if ($data instanceof Horde_Stream) {
             $data = $data->stream;
         }
 
-        rewind($data);
-        while (!feof($data)) {
-            if (fwrite($this->_stream, fread($data, 8192)) === false) {
-                throw new Horde_Imap_Client_Exception(
-                    Horde_Imap_Client_Translation::t("Server write error."),
-                    Horde_Imap_Client_Exception::SERVER_WRITEERROR
-                );
+        if (rewind($data)) {
+            $success = true;
+            while (!feof($data)) {
+                if ((($read_data = fread($data, 8192)) === false) ||
+                    (fwrite($this->_stream, $read_data) === false)) {
+                    $success = false;
+                    break;
+                }
             }
         }
 
-        if ($this->_debugliteral) {
+        if (!$success) {
+            $this->client_debug = true;
+            throw new Horde_Imap_Client_Exception(
+                Horde_Imap_Client_Translation::r("Server write error."),
+                Horde_Imap_Client_Exception::SERVER_WRITEERROR
+            );
+        }
+
+        if ($this->client_debug && !empty($this->_params['debugliteral'])) {
             rewind($data);
             while (!feof($data)) {
-                $this->_debug->raw(fread($data, 8192));
+                $this->_params['debug']->raw(fread($data, 8192));
             }
         } else {
-            $this->_debug->client('[' . ($binary ? 'BINARY' : 'LITERAL') . ' DATA: ' . $length . ' bytes]');
+            $this->_params['debug']->client('[' . ($binary ? 'BINARY' : 'LITERAL') . ' DATA: ' . $length . ' bytes]');
         }
     }
 
     /**
      * Read data from incoming IMAP stream.
      *
+     * @param integer $size  UNUSED: The number of bytes to read from the
+     *                       socket.
+     *
      * @return Horde_Imap_Client_Tokenize  The tokenized data.
      *
      * @throws Horde_Imap_Client_Exception
      */
-    public function read()
+    public function read($size = null)
     {
         $got_data = false;
         $literal_len = null;
@@ -138,9 +141,11 @@ extends Horde_Imap_Client_Socket_Connection
         do {
             if (feof($this->_stream)) {
                 $this->close();
-                $this->_debug->info("ERROR: Server closed the connection.");
+                $this->_params['debug']->info(
+                    'ERROR: Server closed the connection.'
+                );
                 throw new Horde_Imap_Client_Exception(
-                    Horde_Imap_Client_Translation::t("Mail server closed the connection unexpectedly."),
+                    Horde_Imap_Client_Translation::r("Mail server closed the connection unexpectedly."),
                     Horde_Imap_Client_Exception::DISCONNECT
                 );
             }
@@ -151,9 +156,9 @@ extends Horde_Imap_Client_Socket_Connection
                 while (($in = fgets($this->_stream)) !== false) {
                     $got_data = true;
 
-                    if (substr($in, -1) == "\n") {
+                    if (substr($in, -1) === "\n") {
                         $in = rtrim($in);
-                        $this->_debug->server($buffer . $in);
+                        $this->_params['debug']->server($buffer . $in);
                         $token->add($in);
                         break;
                     }
@@ -180,9 +185,16 @@ extends Horde_Imap_Client_Socket_Connection
 
             while (($literal_len > 0) && !feof($this->_stream)) {
                 $in = fread($this->_stream, min($literal_len, 8192));
-                $token->add($in);
-                if ($this->_debugliteral) {
-                    $this->_debug->raw($in);
+                /* Only store in stream if this is something more than a
+                 * nominal number of bytes. */
+                if ($old_len > 256) {
+                    $token->addLiteralStream($in);
+                } else {
+                    $token->add($in);
+                }
+
+                if (!empty($this->_params['debugliteral'])) {
+                    $this->_params['debug']->raw($in);
                 }
 
                 $got_data = true;
@@ -191,15 +203,15 @@ extends Horde_Imap_Client_Socket_Connection
 
             $literal_len = null;
 
-            if (!$this->_debugliteral) {
-                $this->_debug->server('[' . ($binary ? 'BINARY' : 'LITERAL') . ' DATA: ' . $old_len . ' bytes]');
+            if (empty($this->_params['debugliteral'])) {
+                $this->_params['debug']->server('[' . ($binary ? 'BINARY' : 'LITERAL') . ' DATA: ' . $old_len . ' bytes]');
             }
         } while (true);
 
         if (!$got_data) {
-            $this->_debug->info("ERROR: read/timeout error.");
+            $this->_params['debug']->info('ERROR: read/timeout error.');
             throw new Horde_Imap_Client_Exception(
-                Horde_Imap_Client_Translation::t("Error when communicating with the mail server."),
+                Horde_Imap_Client_Translation::r("Error when communicating with the mail server."),
                 Horde_Imap_Client_Exception::SERVER_READERROR
             );
         }

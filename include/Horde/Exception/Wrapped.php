@@ -1,15 +1,25 @@
 <?php
 /**
+ * Copyright 2008-2017 Horde LLC (http://www.horde.org/)
+ *
+ * See the enclosed file LICENSE for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
+ *
+ * @author   
+ * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL
+ * @package  Exception
+ */
+
+/**
  * Horde exception class that can wrap and set its details from PEAR_Error,
  * Exception, and other objects with similar interfaces.
  *
- * Copyright 2008-2013 Horde LLC (http://www.horde.org/)
- *
- * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.horde.org/licenses/lgpl21.
- *
- * @category Horde
- * @package  Exception
+ * @author    
+ * @category  Horde
+ * @copyright 2008-2017 Horde LLC
+ * @license   http://www.horde.org/licenses/lgpl21 LGPL
+ * @package   Exception
  */
 class Horde_Exception_Wrapped extends Horde_Exception
 {
@@ -41,13 +51,6 @@ class Horde_Exception_Wrapped extends Horde_Exception
             $message = (string)$message->getMessage();
         }
 
-        /* Modified for WordPress inclusion:
-            The "previous" argument was added in PHP 5.3. */
-        if( version_compare( PHP_VERSION, '5.3' ) < 0 ) {
-            parent::__construct($message, $code);
-        }
-        else {
-            parent::__construct($message, $code, $previous);
-        }
+        parent::__construct($message, $code, $previous);
     }
 }

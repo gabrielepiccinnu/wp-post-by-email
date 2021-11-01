@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 2012-2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2012-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2012-2013 Horde LLC
+ * @copyright 2012-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
@@ -16,15 +16,18 @@
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2012-2013 Horde LLC
+ * @copyright 2012-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  *
  * @property-read integer $key_type  The key type (sequence or UID).
  */
-class Horde_Imap_Client_Fetch_Results implements ArrayAccess, Countable, IteratorAggregate
+class Horde_Imap_Client_Fetch_Results
+implements ArrayAccess, Countable, IteratorAggregate
 {
-    /* Key type constants. */
+    /**
+     * Key type constants.
+     */
     const SEQUENCE = 1;
     const UID = 2;
 
@@ -110,7 +113,7 @@ class Horde_Imap_Client_Fetch_Results implements ArrayAccess, Countable, Iterato
      */
     public function first()
     {
-        return (count($this->_data) == 1)
+        return (count($this->_data) === 1)
             ? reset($this->_data)
             : null;
     }

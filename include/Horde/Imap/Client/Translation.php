@@ -1,37 +1,38 @@
 <?php
 /**
- * Bogus translation wrapper class for Horde_Imap_Client.
+ * Copyright 2010-2017 Horde LLC (http://www.horde.org/)
  *
- * Uses WP __() function instead.
+ * See the enclosed file LICENSE for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
+ * @category  Horde
+ * @copyright 2010-2017 Horde LLC
+ * @license   http://www.horde.org/licenses/lgpl21 LGPL
+ * @package   Imap_Client
  */
-class Horde_Imap_Client_Translation
+
+/**
+ * Translation wrapper class for Horde_Imap_Client.
+ *
+ * @author    Michael Slusarz <slusarz@horde.org>
+ * @category  Horde
+ * @copyright 2010-2017 Horde LLC
+ * @license   http://www.horde.org/licenses/lgpl21 LGPL
+ * @package   Imap_Client
+ */
+class Horde_Imap_Client_Translation extends Horde_Translation_Autodetect
 {
     /**
-     * Returns the translation of a message.
+     * The translation domain
      *
-     * @var string $message  The string to translate.
-     *
-     * @return string  The string translation, or the original string if no
-     *                 translation exists.
+     * @var string
      */
-    static public function t($message)
-    {
-        return __($message);
-    }
+    protected static $_domain = 'Horde_Imap_Client';
 
     /**
-     * Returns the plural translation of a message.
+     * The absolute PEAR path to the translations for the default gettext handler.
      *
-     * @param string $singular  The singular version to translate.
-     * @param string $plural    The plural version to translate.
-     * @param integer $number   The number that determines singular vs. plural.
-     *
-     * @return string  The string translation, or the original string if no
-     *                 translation exists.
+     * @var string
      */
-    static public function ngettext($singular, $plural, $number)
-    {
-        return _n( $singular, $plural, $number );
-    }
+    protected static $_pearDirectory = '@data_dir@';
 }

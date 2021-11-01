@@ -1,32 +1,53 @@
 <?php
 /**
- * Copyright 2013 Horde LLC (http://www.horde.org/)
+ * Copyright 2013-2017 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
+ * See the enclosed file LICENSE for license information (LGPL). If you
  * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category  Horde
- * @copyright 2013 Horde LLC
+ * @copyright 2013-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
 
 /**
  * A MongoDB database implementation for caching IMAP/POP data.
+ *
  * Requires the Horde_Mongo class.
  *
  * @author    Michael Slusarz <slusarz@horde.org>
  * @category  Horde
- * @copyright 2013 Horde LLC
+ * @copyright 2013-2017 Horde LLC
  * @license   http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package   Imap_Client
  */
-class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Backend implements Horde_Mongo_Collection_Index
+class Horde_Imap_Client_Cache_Backend_Mongo
+extends Horde_Imap_Client_Cache_Backend
+implements Horde_Mongo_Collection_Index
 {
-    /* Collection names. */
+    /** Mongo collection names. */
     const BASE = 'horde_imap_client_cache_data';
     const MD = 'horde_imap_client_cache_metadata';
     const MSG = 'horde_imap_client_cache_message';
+
+    /** Mongo field names: BASE collection. */
+    const BASE_HOSTSPEC = 'hostspec';
+    const BASE_MAILBOX = 'mailbox';
+    const BASE_MODIFIED = 'modified';
+    const BASE_PORT = 'port';
+    const BASE_UID = 'data';
+    const BASE_USERNAME = 'username';
+
+    /** Mongo field names: MD collection. */
+    const MD_DATA = 'data';
+    const MD_FIELD = 'field';
+    const MD_UID = 'uid';
+
+    /** Mongo field names: MSG collection. */
+    const MSG_DATA = 'data';
+    const MSG_MSGUID = 'msguid';
+    const MSG_UID = 'uid';
 
     /**
      * The MongoDB object for the cache data.
@@ -43,16 +64,16 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
     protected $_indices = array(
         self::BASE => array(
             'base_index_1' => array(
-                'hostspec' => 1,
-                'mailbox' => 1,
-                'port' => 1,
-                'username' => 1,
+                self::BASE_HOSTSPEC => 1,
+                self::BASE_MAILBOX => 1,
+                self::BASE_PORT => 1,
+                self::BASE_USERNAME => 1,
             )
         ),
         self::MSG => array(
             'msg_index_1' => array(
-                'uid' => 1,
-                'msguid' => 1
+                self::MSG_MSGUID => 1,
+                self::MSG_UID => 1
             )
         )
     );
@@ -61,15 +82,10 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
      * Constructor.
      *
      * @param array $params  Configuration parameters:
-     * <ul>
-     *  <li>
-     *   REQUIRED parameters:
-     *   <ul>
-     *    <li>
-     *     mongo_db: (Horde_Mongo_Client) A MongoDB client object.
-     *    </li>
-     *   </ul>
-     *  </li>
+     * <pre>
+     *   - REQUIRED parameters:
+     *     - mongo_db: (Horde_Mongo_Client) A MongoDB client object.
+     * </pre>
      */
     public function __construct(array $params = array())
     {
@@ -99,20 +115,19 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         $out = array();
         $query = array(
-            'msguid' => array('$in' => array_map('strval', $uids)),
-            'uid' => $uid
+            self::MSG_MSGUID => array('$in' => array_map('strval', $uids)),
+            self::MSG_UID => $uid
         );
 
         try {
             $cursor = $this->_db->selectCollection(self::MSG)->find(
                 $query,
-                array(
-                    'data' => true,
-                    'msguid' => true
-                )
+                array(self::MSG_DATA => true, self::MSG_MSGUID => true)
             );
             foreach ($cursor as $val) {
-                $out[$val['msguid']] = $this->_value($val['data']);
+                try {
+                    $out[$val[self::MSG_MSGUID]] = $this->_value($val[self::MSG_DATA]);
+                } catch (Exception $e) {}
             }
         } catch (MongoException $e) {}
 
@@ -131,18 +146,15 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         $out = array();
         $query = array(
-            'uid' => $uid
+            self::MSG_UID => $uid
         );
 
         try {
             $cursor = $this->_db->selectCollection(self::MSG)->find(
-                $query,
-                array(
-                    'msguid' => true
-                )
+                $query, array(self::MSG_MSGUID => true)
             );
             foreach ($cursor as $val) {
-                $out[] = $val['msguid'];
+                $out[] = $val[self::MSG_MSGUID];
             }
         } catch (MongoException $e) {}
 
@@ -166,19 +178,20 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
             try {
                 if (isset($res[$key])) {
                     $coll->update(array(
-                        'msguid' => strval($key),
-                        'uid' => $uid
+                        self::MSG_MSGUID => strval($key),
+                        self::MSG_UID => $uid
                     ), array(
-                        'data' => $this->_value(array_merge($res[$key], $val)),
-                        'msguid' => strval($key),
-                        'uid' => $uid
+                        self::MSG_DATA => $this->_value(array_merge($res[$key], $val)),
+                        self::MSG_MSGUID => strval($key),
+                        self::MSG_UID => $uid
                     ));
                 } else {
-                    $coll->insert(array(
-                        'data' => $this->_value($val),
-                        'msguid' => strval($key),
-                        'uid' => $uid
-                    ));
+                    $doc = array(
+                        self::MSG_DATA => $this->_value($val),
+                        self::MSG_MSGUID => strval($key),
+                        self::MSG_UID => $uid
+                    );
+                    $coll->insert($doc);
                 }
             } catch (MongoException $e) {}
         }
@@ -186,8 +199,8 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
         /* Update modified time. */
         try {
             $this->_db->selectCollection(self::BASE)->update(
-                array('uid' => $uid),
-                array('modified' => time())
+                array(self::BASE_UID => $uid),
+                array(self::BASE_MODIFIED => time())
             );
         } catch (MongoException $e) {}
 
@@ -205,12 +218,12 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         $out = array();
         $query = array(
-            'uid' => $uid
+            self::MD_UID => $uid
         );
 
         if (!empty($entries)) {
             $entries[] = 'uidvalid';
-            $query['field'] = array(
+            $query[self::MD_FIELD] = array(
                 '$in' => array_unique($entries)
             );
         }
@@ -218,13 +231,12 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
         try {
             $cursor = $this->_db->selectCollection(self::MD)->find(
                 $query,
-                array(
-                    'data' => true,
-                    'field' => true
-                )
+                array(self::MD_DATA => true, self::MD_FIELD => true)
             );
             foreach ($cursor as $val) {
-                $out[$val['field']] = $this->_value($val['data']);
+                try {
+                    $out[$val[self::MD_FIELD]] = $this->_value($val[self::MD_DATA]);
+                } catch (Exception $e) {}
             }
 
             if (is_null($uidvalid) ||
@@ -234,7 +246,7 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
             }
 
             $this->deleteMailbox($mailbox);
-        } catch (Horde_Db_Exception $e) {}
+        } catch (MongoException $e) {}
 
         return array();
     }
@@ -253,13 +265,13 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
             try {
                 $coll->update(
                     array(
-                        'field' => $key,
-                        'uid' => $uid
+                        self::MD_FIELD => $key,
+                        self::MD_UID => $uid
                     ),
                     array(
-                        'data' => $this->_value($val),
-                        'field' => $key,
-                        'uid' => $uid
+                        self::MD_DATA => $this->_value($val),
+                        self::MD_FIELD => $key,
+                        self::MD_UID => $uid
                     ),
                     array('upsert' => true)
                 );
@@ -271,11 +283,13 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
      */
     public function deleteMsgs($mailbox, $uids)
     {
-        if ($uid = $this->_getUid($mailbox)) {
+        if (!empty($uids) && ($uid = $this->_getUid($mailbox))) {
             try {
                 $this->_db->selectCollection(self::MSG)->remove(array(
-                    'msguid' => array('$in' => array_map('strval', $uids)),
-                    'uid' => $uid
+                    self::MSG_MSGUID => array(
+                        '$in' => array_map('strval', $uids)
+                    ),
+                    self::MSG_UID => $uid
                 ));
             } catch (MongoException $e) {}
         }
@@ -291,9 +305,8 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         foreach (array(self::BASE, self::MD, self::MSG) as $val) {
             try {
-                $this->_db->selectCollection($val)->remove(array(
-                    'uid' => $uid
-                ));
+                $this->_db->selectCollection($val)
+                    ->remove(array('uid' => $uid));
             } catch (MongoException $e) {}
         }
     }
@@ -310,7 +323,7 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
         }
 
         $query = array(
-            'modified' => array('$lt' => (time() - $lifetime))
+            self::BASE_MODIFIED => array('$lt' => (time() - $lifetime))
         );
         $uids = array();
 
@@ -327,9 +340,8 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         foreach (array(self::BASE, self::MD, self::MSG) as $val) {
             try {
-                $this->_db->selectCollection($val)->remove(array(
-                    'uid' => array('$in' => $uids)
-                ));
+                $this->_db->selectCollection($val)
+                    ->remove(array('uid' => array('$in' => $uids)));
             } catch (MongoException $e) {}
         }
     }
@@ -344,10 +356,10 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
     protected function _getUid($mailbox)
     {
         $query = array(
-            'hostspec' => $this->_params['hostspec'],
-            'mailbox' => $mailbox,
-            'port' => $this->_params['port'],
-            'username' => $this->_params['username']
+            self::BASE_HOSTSPEC => $this->_params['hostspec'],
+            self::BASE_MAILBOX => $mailbox,
+            self::BASE_PORT => $this->_params['port'],
+            self::BASE_USERNAME => $this->_params['username']
         );
 
         try {
@@ -368,12 +380,13 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
      */
     protected function _createUid($mailbox)
     {
-        $this->_db->selectCollection(self::BASE)->insert(array(
-            'hostspec' => $this->_params['hostspec'],
-            'mailbox' => $mailbox,
-            'port' => $this->_params['port'],
-            'username' => $this->_params['username']
-        ));
+        $doc = array(
+            self::BASE_HOSTSPEC => $this->_params['hostspec'],
+            self::BASE_MAILBOX => $mailbox,
+            self::BASE_PORT => $this->_params['port'],
+            self::BASE_USERNAME => $this->_params['username']
+        );
+        $this->_db->selectCollection(self::BASE)->insert($doc);
 
         return $this->_getUid($mailbox);
     }
@@ -395,7 +408,9 @@ class Horde_Imap_Client_Cache_Backend_Mongo extends Horde_Imap_Client_Cache_Back
 
         return ($data instanceof MongoBinData)
             ? @unserialize($compress->decompress($data->bin))
-            : new MongoBinData($compress->compress(serialize($data)), MongoBinData::BYTE_ARRAY);
+            : new MongoBinData(
+                $compress->compress(serialize($data)), MongoBinData::BYTE_ARRAY
+            );
     }
 
     /* Horde_Mongo_Collection_Index methods. */
