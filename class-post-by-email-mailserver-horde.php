@@ -262,7 +262,7 @@ class Post_By_Email_Mailserver_Horde extends Post_By_Email_Mailserver {
 				continue;
 			}
 
-			print "attachment";
+			//print "attachment";
 
 			if ( ! $name ) {
 				// sometimes (usually with inline images), we don't have a filename
